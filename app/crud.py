@@ -472,3 +472,116 @@ def parse_and_create_chat_assignments(db: Session, chat_text: str, duty_date: st
     print(f"Total assignments created: {assignments_created}")
     db.commit()
     return assignments_created
+
+
+def get_personnel_details(db: Session, person_id: int) -> Optional[dict]:
+    """Get comprehensive personnel details including assignment history and fairness stats."""
+    person = db.query(Personnel).filter(Personnel.id == person_id).first()
+    if not person:
+        return None
+    
+    # Get all assignments for this person
+    assignments = (
+        db.query(Assignment)
+        .filter(Assignment.person_id == person_id)
+        .join(Post)
+        .join(PostType)
+        .order_by(Assignment.duty_date.desc())
+        .all()
+    )
+    
+    # Get fairness tracking data
+    fairness_tracking = (
+        db.query(FairnessTracking)
+        .filter(FairnessTracking.person_id == person_id)
+        .all()
+    )
+    
+    # Calculate assignment statistics
+    total_assignments = len(assignments)
+    post_type_counts = {}
+    post_counts = {}
+    total_difficulty_points = 0
+    recent_assignments = []
+    
+    for assignment in assignments:
+        post_type_name = assignment.post.post_type.name
+        post_name = assignment.post.name
+        difficulty_weight = assignment.post.post_type.difficulty_weight
+        
+        # Count by post type
+        post_type_counts[post_type_name] = post_type_counts.get(post_type_name, 0) + 1
+        
+        # Count by specific post
+        post_counts[post_name] = post_counts.get(post_name, 0) + 1
+        
+        # Sum difficulty points
+        total_difficulty_points += difficulty_weight
+        
+        # Recent assignments (last 10)
+        if len(recent_assignments) < 10:
+            recent_assignments.append({
+                "id": assignment.id,
+                "duty_date": assignment.duty_date.isoformat(),
+                "post_name": post_name,
+                "post_type": post_type_name,
+                "start_time": assignment.start_time,
+                "end_time": assignment.end_time,
+                "status": assignment.status,
+                "difficulty_weight": difficulty_weight,
+                "notes": assignment.notes
+            })
+    
+    # Calculate fairness score
+    fairness_score = 0.0
+    consecutive_standby = 0
+    last_assignment_date = None
+    
+    if assignments:
+        last_assignment_date = assignments[0].duty_date.isoformat()
+        
+        # Calculate fairness score based on recency and difficulty
+        avg_difficulty = total_difficulty_points / total_assignments if total_assignments > 0 else 0
+        # Convert both dates to the same type for comparison
+        days_since_last = (datetime.now().date() - assignments[0].duty_date.date()).days
+        fairness_score = avg_difficulty * 0.7 + (days_since_last * 0.1)
+        
+        # Count consecutive standby (if applicable)
+        for assignment in assignments:
+            if assignment.status == "standby":
+                consecutive_standby += 1
+            else:
+                break
+    
+    # Get fairness tracking details (simplified since FairnessTracking is per person, not per post)
+    fairness_details = []
+    for tracking in fairness_tracking:
+        fairness_details.append({
+            "total_assignments": tracking.total_assignments,
+            "total_difficulty_points": tracking.total_difficulty_points,
+            "last_assignment_date": tracking.last_assignment_date.isoformat() if tracking.last_assignment_date else None,
+            "consecutive_standby": tracking.consecutive_standby
+        })
+    
+    return {
+        "person_id": person.id,
+        "rank": person.rank,
+        "name": person.name,
+        "full_name": person.full_name,
+        "is_active": person.is_active,
+        "created_at": person.created_at.isoformat(),
+        "total_assignments": total_assignments,
+        "total_difficulty_points": total_difficulty_points,
+        "fairness_score": fairness_score,
+        "consecutive_standby": consecutive_standby,
+        "last_assignment_date": last_assignment_date,
+        "post_type_counts": post_type_counts,
+        "post_counts": post_counts,
+        "recent_assignments": recent_assignments,
+        "fairness_tracking": fairness_details,
+        "assignment_summary": {
+            "most_frequent_post_type": max(post_type_counts.items(), key=lambda x: x[1])[0] if post_type_counts else None,
+            "most_frequent_post": max(post_counts.items(), key=lambda x: x[1])[0] if post_counts else None,
+            "average_difficulty": total_difficulty_points / total_assignments if total_assignments > 0 else 0
+        }
+    }

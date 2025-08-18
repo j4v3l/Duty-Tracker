@@ -195,6 +195,15 @@ def create_personnel(personnel: schemas.PersonnelCreate, db: Session = Depends(g
     return crud.create_personnel(db, personnel)
 
 
+@app.get("/api/personnel/{person_id}/details")
+def get_personnel_details(person_id: int, db: Session = Depends(get_db)):
+    """Get comprehensive personnel details including assignment history and fairness stats."""
+    details = crud.get_personnel_details(db, person_id)
+    if not details:
+        raise HTTPException(status_code=404, detail="Personnel not found")
+    return details
+
+
 @app.get("/api/posts", response_model=List[schemas.PostResponse])
 def get_posts(db: Session = Depends(get_db)):
     """Get all posts."""

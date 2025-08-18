@@ -14,8 +14,10 @@ function dashboardData() {
     showAssignmentModal: false,
     showImportModal: false,
     showPostDistribution: false,
+    showPersonnelModal: false,
     importing: false,
     recalculating: false,
+    personnelDetails: null,
     newAssignment: {
       person_id: "",
       post_id: "",
@@ -32,8 +34,8 @@ function dashboardData() {
     async init() {
       // Use server data if available, otherwise load from API
       if (window.serverData) {
-        this.stats = window.serverData.stats;
-        this.fairnessStats = window.serverData.fairness_stats;
+        this.stats = window.serverData.stats || {};
+        this.fairnessStats = window.serverData.fairness_stats || [];
         this.postDistributionStats =
           window.serverData.post_distribution_stats || {};
       }
@@ -62,9 +64,16 @@ function dashboardData() {
         this.assignments = await assignmentsRes.json();
         this.personnel = await personnelRes.json();
         this.posts = await postsRes.json();
-        this.fairnessStats = await fairnessRes.json();
+
+        // Handle fairness stats with error checking
+        const fairnessData = await fairnessRes.json();
+        this.fairnessStats = Array.isArray(fairnessData) ? fairnessData : [];
+
         this.stats = await statsRes.json();
-        this.postDistributionStats = await postDistributionRes.json();
+
+        // Handle post distribution stats with error checking
+        const postDistData = await postDistributionRes.json();
+        this.postDistributionStats = postDistData || {};
 
         // Add full_name property to personnel for easier display
         this.personnel.forEach((person) => {
@@ -72,6 +81,13 @@ function dashboardData() {
         });
       } catch (error) {
         console.error("Failed to load data:", error);
+        // Ensure arrays are initialized even on error
+        this.fairnessStats = this.fairnessStats || [];
+        this.personnel = this.personnel || [];
+        this.posts = this.posts || [];
+        this.assignments = this.assignments || [];
+        this.stats = this.stats || {};
+        this.postDistributionStats = this.postDistributionStats || {};
       } finally {
         this.loading = false;
       }
@@ -194,6 +210,25 @@ function dashboardData() {
         alert("Failed to recalculate fairness: " + error.message);
       } finally {
         this.recalculating = false;
+      }
+    },
+
+    async openPersonnelModal(personId) {
+      this.showPersonnelModal = true;
+      this.personnelDetails = null; // Clear previous data
+
+      try {
+        const response = await fetch(`/api/personnel/${personId}/details`);
+        if (response.ok) {
+          this.personnelDetails = await response.json();
+        } else {
+          const error = await response.json();
+          alert("Failed to load personnel details: " + error.detail);
+          this.showPersonnelModal = false;
+        }
+      } catch (error) {
+        alert("Failed to load personnel details: " + error.message);
+        this.showPersonnelModal = false;
       }
     },
 
