@@ -183,6 +183,83 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     )
 
 
+@app.get("/personnel", response_class=HTMLResponse)
+async def personnel_page(request: Request, db: Session = Depends(get_db)):
+    """Total Personnel page."""
+    stats = crud.get_dashboard_stats(db)
+    personnel = crud.get_personnel(db)
+    
+    return templates.TemplateResponse(
+        "personnel.html",
+        {
+            "request": request,
+            "stats": stats,
+            "personnel": personnel
+        }
+    )
+
+
+@app.get("/assignments", response_class=HTMLResponse)
+async def assignments_page(request: Request, db: Session = Depends(get_db)):
+    """Active Assignments page."""
+    stats = crud.get_dashboard_stats(db)
+    assignments = crud.get_assignments(db, limit=1000)  # Get more assignments for the page
+    
+    return templates.TemplateResponse(
+        "assignments.html",
+        {
+            "request": request,
+            "stats": stats,
+            "assignments": assignments
+        }
+    )
+
+
+@app.get("/posts", response_class=HTMLResponse)
+async def posts_page(request: Request, db: Session = Depends(get_db)):
+    """Posts Covered page."""
+    stats = crud.get_dashboard_stats(db)
+    posts = crud.get_posts(db)
+    post_types = crud.get_post_types(db)
+    
+    return templates.TemplateResponse(
+        "posts.html",
+        {
+            "request": request,
+            "stats": stats,
+            "posts": posts,
+            "post_types": post_types
+        }
+    )
+
+
+@app.get("/fairness", response_class=HTMLResponse)
+async def fairness_page(request: Request, db: Session = Depends(get_db)):
+    """Fairness Variance page."""
+    stats = crud.get_dashboard_stats(db)
+    fairness_stats_raw = crud.get_fairness_stats(db)
+    post_distribution_stats = crud.get_post_distribution_stats(db)
+    
+    # Convert SQLAlchemy objects to dictionaries for JSON serialization
+    fairness_stats = []
+    for fs in fairness_stats_raw:
+        fs_dict = schemas.FairnessStats.model_validate(fs).model_dump()
+        # Convert datetime to ISO string for JSON serialization
+        if fs_dict.get('last_assignment_date'):
+            fs_dict['last_assignment_date'] = fs_dict['last_assignment_date'].isoformat()
+        fairness_stats.append(fs_dict)
+    
+    return templates.TemplateResponse(
+        "fairness.html",
+        {
+            "request": request,
+            "stats": stats,
+            "fairness_stats": fairness_stats,
+            "post_distribution_stats": post_distribution_stats
+        }
+    )
+
+
 @app.get("/api/personnel", response_model=List[schemas.PersonnelResponse])
 def get_personnel(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """Get all personnel."""

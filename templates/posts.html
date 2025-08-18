@@ -1,0 +1,515 @@
+{% extends "base.html" %} {% block title %}Posts - Duty Tracker{% endblock %} {%
+block head %}
+<script>
+  // Pass server data to Alpine.js
+  window.serverData = {
+    stats: {{ stats | tojson | safe }},
+    posts: {{ posts | tojson | safe }},
+    postTypes: {{ post_types | tojson | safe }}
+  };
+</script>
+{% endblock %} {% block content %}
+<div x-data="postsPageData()" x-init="init()">
+  <!-- Page Header -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+          <i class="fas fa-map-marker-alt mr-2"></i>
+          Posts Management
+        </h1>
+        <p class="text-gray-600">Manage duty posts and their configurations</p>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="bg-white p-4 rounded-lg shadow flex items-center space-x-6">
+        <div class="text-center">
+          <div
+            class="text-2xl font-bold text-blue-600"
+            x-text="stats.posts_covered || 0"
+          ></div>
+          <div class="text-sm text-gray-500">Posts Covered</div>
+        </div>
+        <div class="text-center">
+          <div
+            class="text-2xl font-bold text-green-600"
+            x-text="activePosts"
+          ></div>
+          <div class="text-sm text-gray-500">Active</div>
+        </div>
+        <div class="text-center">
+          <div
+            class="text-2xl font-bold text-purple-600"
+            x-text="postTypes.length"
+          ></div>
+          <div class="text-sm text-gray-500">Post Types</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="mb-6 flex flex-wrap gap-4">
+    <button
+      @click="openAddPostModal()"
+      class="military-primary px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
+    >
+      <i class="fas fa-plus mr-2"></i>
+      Add Post
+    </button>
+
+    <button
+      @click="openAddPostTypeModal()"
+      class="bg-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+    >
+      <i class="fas fa-tags mr-2"></i>
+      Add Post Type
+    </button>
+
+    <button
+      @click="refreshData()"
+      class="military-secondary px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
+    >
+      <i class="fas fa-sync mr-2"></i>
+      Refresh
+    </button>
+
+    <!-- Filter Controls -->
+    <div class="flex gap-2 ml-auto">
+      <select
+        x-model="postTypeFilter"
+        @change="filterPosts()"
+        class="px-3 py-2 border border-gray-300 rounded-lg"
+      >
+        <option value="all">All Post Types</option>
+        <template x-for="postType in postTypes" :key="postType.id">
+          <option :value="postType.id" x-text="postType.name"></option>
+        </template>
+      </select>
+
+      <select
+        x-model="statusFilter"
+        @change="filterPosts()"
+        class="px-3 py-2 border border-gray-300 rounded-lg"
+      >
+        <option value="all">All Status</option>
+        <option value="active">Active Only</option>
+        <option value="inactive">Inactive Only</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Posts Grid View -->
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <template x-for="post in filteredPosts" :key="post.id">
+      <div
+        class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow"
+      >
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center">
+              <div
+                :class="getPostTypeIconClass(post.post_type.name)"
+                class="w-12 h-12 rounded-full flex items-center justify-center mr-4"
+              >
+                <i
+                  :class="getPostTypeIcon(post.post_type.name)"
+                  class="text-xl text-white"
+                ></i>
+              </div>
+              <div>
+                <h3
+                  class="text-lg font-semibold text-gray-900"
+                  x-text="post.name"
+                ></h3>
+                <p
+                  class="text-sm text-gray-500"
+                  x-text="post.post_type.name"
+                ></p>
+              </div>
+            </div>
+            <span
+              :class="post.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+              class="px-2 py-1 text-xs font-medium rounded-full"
+              x-text="post.is_active ? 'Active' : 'Inactive'"
+            ></span>
+          </div>
+
+          <div class="space-y-2 mb-4">
+            <div class="flex items-center text-sm text-gray-600">
+              <i class="fas fa-weight-hanging w-4 mr-2"></i>
+              <span
+                >Difficulty:
+                <span
+                  class="font-medium"
+                  x-text="post.post_type.difficulty_weight"
+                ></span>
+                points</span
+              >
+            </div>
+            <div
+              class="flex items-center text-sm text-gray-600"
+              x-show="post.post_type.meeting_time"
+            >
+              <i class="fas fa-clock w-4 mr-2"></i>
+              <span
+                >Meeting:
+                <span
+                  class="font-medium"
+                  x-text="post.post_type.meeting_time || 'TBD'"
+                ></span
+              ></span>
+            </div>
+            <div
+              class="flex items-center text-sm text-gray-600"
+              x-show="post.post_type.meeting_location"
+            >
+              <i class="fas fa-map-pin w-4 mr-2"></i>
+              <span
+                >Location:
+                <span
+                  class="font-medium"
+                  x-text="post.post_type.meeting_location || 'TBD'"
+                ></span
+              ></span>
+            </div>
+            <div class="flex items-center text-sm text-gray-600">
+              <i class="fas fa-users w-4 mr-2"></i>
+              <span
+                >Required:
+                <span
+                  class="font-medium"
+                  x-text="post.post_type.personnel_required"
+                ></span>
+                person<span x-show="post.post_type.personnel_required !== 1"
+                  >nel</span
+                ></span
+              >
+            </div>
+          </div>
+
+          <div
+            class="text-sm text-gray-600 mb-4"
+            x-show="post.post_type.description"
+          >
+            <p class="line-clamp-2" x-text="post.post_type.description"></p>
+          </div>
+
+          <div class="flex space-x-2">
+            <button
+              @click="viewPostDetails(post)"
+              class="flex-1 text-blue-600 hover:text-blue-800 text-sm font-medium border border-blue-200 hover:border-blue-300 rounded px-3 py-2 transition-colors"
+            >
+              <i class="fas fa-eye mr-1"></i>
+              View Details
+            </button>
+            <button
+              @click="editPost(post)"
+              class="flex-1 text-green-600 hover:text-green-800 text-sm font-medium border border-green-200 hover:border-green-300 rounded px-3 py-2 transition-colors"
+            >
+              <i class="fas fa-edit mr-1"></i>
+              Edit
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <!-- Post Types Section -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-md mb-8">
+    <div class="px-4 py-5 sm:px-6">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">
+        <i class="fas fa-tags mr-2"></i>
+        Post Types Configuration
+      </h3>
+      <p class="mt-1 text-sm text-gray-500">
+        Configure different types of duty posts and their requirements
+      </p>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="responsive-table min-w-full">
+        <thead>
+          <tr>
+            <th>Type Name</th>
+            <th>Description</th>
+            <th>Difficulty</th>
+            <th>Personnel Required</th>
+            <th>Meeting Details</th>
+            <th>Posts Count</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="postType in postTypes" :key="postType.id">
+            <tr class="hover:bg-gray-50">
+              <td>
+                <div class="flex items-center">
+                  <div
+                    :class="getPostTypeIconClass(postType.name)"
+                    class="w-8 h-8 rounded-full flex items-center justify-center mr-3"
+                  >
+                    <i
+                      :class="getPostTypeIcon(postType.name)"
+                      class="text-sm text-white"
+                    ></i>
+                  </div>
+                  <span class="font-medium" x-text="postType.name"></span>
+                </div>
+              </td>
+              <td>
+                <p
+                  class="text-sm text-gray-900 line-clamp-2"
+                  x-text="postType.description || 'No description'"
+                ></p>
+              </td>
+              <td>
+                <div class="text-center">
+                  <span
+                    class="text-lg font-bold"
+                    x-text="postType.difficulty_weight"
+                  ></span>
+                  <div class="text-xs text-gray-500">points</div>
+                </div>
+              </td>
+              <td>
+                <div class="text-center">
+                  <span
+                    class="text-lg font-bold"
+                    x-text="postType.personnel_required"
+                  ></span>
+                  <div class="text-xs text-gray-500">
+                    person<span x-show="postType.personnel_required !== 1"
+                      >nel</span
+                    >
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="text-sm">
+                  <div x-show="postType.meeting_time">
+                    <i class="fas fa-clock w-3 mr-1"></i>
+                    <span x-text="postType.meeting_time"></span>
+                  </div>
+                  <div x-show="postType.meeting_location" class="text-gray-600">
+                    <i class="fas fa-map-pin w-3 mr-1"></i>
+                    <span x-text="postType.meeting_location"></span>
+                  </div>
+                </div>
+              </td>
+              <td>
+                <div class="text-center">
+                  <span
+                    class="text-lg font-bold"
+                    x-text="getPostCountForType(postType.id)"
+                  ></span>
+                  <div class="text-xs text-gray-500">posts</div>
+                </div>
+              </td>
+              <td>
+                <div class="flex space-x-2">
+                  <button
+                    @click="editPostType(postType)"
+                    class="text-green-600 hover:text-green-800 text-sm"
+                  >
+                    <i class="fas fa-edit mr-1"></i>
+                    Edit
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Statistics Cards -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow">
+      <div class="flex items-center">
+        <i class="fas fa-chart-bar text-3xl text-blue-500 mr-4"></i>
+        <div>
+          <h3 class="text-lg font-medium text-gray-900">Avg Difficulty</h3>
+          <p
+            class="text-2xl font-bold text-blue-600"
+            x-text="averageDifficulty"
+          ></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow">
+      <div class="flex items-center">
+        <i class="fas fa-users text-3xl text-green-500 mr-4"></i>
+        <div>
+          <h3 class="text-lg font-medium text-gray-900">
+            Total Personnel Req.
+          </h3>
+          <p
+            class="text-2xl font-bold text-green-600"
+            x-text="totalPersonnelRequired"
+          ></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow">
+      <div class="flex items-center">
+        <i class="fas fa-shield-alt text-3xl text-yellow-500 mr-4"></i>
+        <div>
+          <h3 class="text-lg font-medium text-gray-900">Security Posts</h3>
+          <p
+            class="text-2xl font-bold text-yellow-600"
+            x-text="securityPostsCount"
+          ></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow">
+      <div class="flex items-center">
+        <i class="fas fa-cog text-3xl text-purple-500 mr-4"></i>
+        <div>
+          <h3 class="text-lg font-medium text-gray-900">Support Posts</h3>
+          <p
+            class="text-2xl font-bold text-purple-600"
+            x-text="supportPostsCount"
+          ></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  function postsPageData() {
+    return {
+      loading: false,
+      posts: [],
+      postTypes: [],
+      filteredPosts: [],
+      stats: {},
+      postTypeFilter: "all",
+      statusFilter: "all",
+
+      init() {
+        this.stats = window.serverData.stats || {};
+        this.posts = window.serverData.posts || [];
+        this.postTypes = window.serverData.postTypes || [];
+        this.filterPosts();
+      },
+
+      filterPosts() {
+        let filtered = this.posts;
+
+        // Apply post type filter
+        if (this.postTypeFilter !== "all") {
+          filtered = filtered.filter(
+            (post) => post.post_type_id == this.postTypeFilter
+          );
+        }
+
+        // Apply status filter
+        if (this.statusFilter !== "all") {
+          filtered = filtered.filter((post) => {
+            if (this.statusFilter === "active") return post.is_active;
+            if (this.statusFilter === "inactive") return !post.is_active;
+            return true;
+          });
+        }
+
+        this.filteredPosts = filtered;
+      },
+
+      refreshData() {
+        window.location.reload();
+      },
+
+      openAddPostModal() {
+        console.log("Open add post modal");
+      },
+
+      openAddPostTypeModal() {
+        console.log("Open add post type modal");
+      },
+
+      viewPostDetails(post) {
+        console.log("View post details:", post);
+      },
+
+      editPost(post) {
+        console.log("Edit post:", post);
+      },
+
+      editPostType(postType) {
+        console.log("Edit post type:", postType);
+      },
+
+      getPostTypeIcon(typeName) {
+        const icons = {
+          SOG: "fas fa-shield-alt",
+          CQ: "fas fa-desktop",
+          ECP: "fas fa-road",
+          VCP: "fas fa-car",
+          ROVER: "fas fa-route",
+          "Stand by": "fas fa-clock",
+        };
+        return icons[typeName] || "fas fa-map-marker-alt";
+      },
+
+      getPostTypeIconClass(typeName) {
+        const colors = {
+          SOG: "bg-red-500",
+          CQ: "bg-blue-500",
+          ECP: "bg-green-500",
+          VCP: "bg-yellow-500",
+          ROVER: "bg-purple-500",
+          "Stand by": "bg-gray-500",
+        };
+        return colors[typeName] || "bg-gray-500";
+      },
+
+      getPostCountForType(postTypeId) {
+        return this.posts.filter((post) => post.post_type_id === postTypeId)
+          .length;
+      },
+
+      get activePosts() {
+        return this.posts.filter((post) => post.is_active).length;
+      },
+
+      get averageDifficulty() {
+        if (this.postTypes.length === 0) return 0;
+        const total = this.postTypes.reduce(
+          (sum, pt) => sum + (pt.difficulty_weight || 1),
+          0
+        );
+        return (total / this.postTypes.length).toFixed(1);
+      },
+
+      get totalPersonnelRequired() {
+        return this.postTypes.reduce(
+          (sum, pt) => sum + (pt.personnel_required || 1),
+          0
+        );
+      },
+
+      get securityPostsCount() {
+        const securityTypes = ["SOG", "ECP", "VCP", "ROVER"];
+        return this.posts.filter((post) =>
+          securityTypes.includes(post.post_type.name)
+        ).length;
+      },
+
+      get supportPostsCount() {
+        const supportTypes = ["CQ", "Stand by"];
+        return this.posts.filter((post) =>
+          supportTypes.includes(post.post_type.name)
+        ).length;
+      },
+    };
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,353 @@
+{% extends "base.html" %} {% block title %}Personnel - Duty Tracker{% endblock
+%} {% block head %}
+<script>
+  // Pass server data to Alpine.js
+  window.serverData = {
+    stats: {{ stats | tojson | safe }},
+    personnel: {{ personnel | tojson | safe }}
+  };
+</script>
+{% endblock %} {% block content %}
+<div x-data="personnelPageData()" x-init="init()">
+  <!-- Page Header -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+          <i class="fas fa-users mr-2"></i>
+          Personnel Management
+        </h1>
+        <p class="text-gray-600">
+          Manage and view all military personnel in the system
+        </p>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="bg-white p-4 rounded-lg shadow flex items-center space-x-6">
+        <div class="text-center">
+          <div
+            class="text-2xl font-bold text-blue-600"
+            x-text="stats.total_personnel || 0"
+          ></div>
+          <div class="text-sm text-gray-500">Total Personnel</div>
+        </div>
+        <div class="text-center">
+          <div
+            class="text-2xl font-bold text-green-600"
+            x-text="activePersonnelCount"
+          ></div>
+          <div class="text-sm text-gray-500">Active</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="mb-6 flex flex-wrap gap-4">
+    <button
+      @click="openAddPersonnelModal()"
+      class="military-primary px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
+    >
+      <i class="fas fa-plus mr-2"></i>
+      Add Personnel
+    </button>
+
+    <button
+      @click="refreshData()"
+      class="military-secondary px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
+    >
+      <i class="fas fa-sync mr-2"></i>
+      Refresh
+    </button>
+
+    <!-- Filter Controls -->
+    <div class="flex gap-2 ml-auto">
+      <select
+        x-model="statusFilter"
+        @change="filterPersonnel()"
+        class="px-3 py-2 border border-gray-300 rounded-lg"
+      >
+        <option value="all">All Status</option>
+        <option value="active">Active Only</option>
+        <option value="inactive">Inactive Only</option>
+      </select>
+
+      <input
+        type="text"
+        x-model="searchQuery"
+        @input="filterPersonnel()"
+        placeholder="Search personnel..."
+        class="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+  </div>
+
+  <!-- Personnel Table -->
+  <div class="bg-white shadow overflow-hidden sm:rounded-md">
+    <div class="px-4 py-5 sm:px-6">
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="text-lg leading-6 font-medium text-gray-900">
+            Personnel Roster
+          </h3>
+          <p class="mt-1 text-sm text-gray-500">
+            <span x-text="filteredPersonnel.length"></span>
+            <span
+              x-text="filteredPersonnel.length === 1 ? 'person' : 'personnel'"
+            ></span>
+            found
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="overflow-x-auto">
+      <table class="responsive-table min-w-full" x-show="!loading">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Assignments</th>
+            <th>Last Assignment</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <template x-for="person in filteredPersonnel" :key="person.id">
+            <tr class="fade-in hover:bg-gray-50">
+              <td>
+                <span class="rank-badge" x-text="person.rank"></span>
+              </td>
+              <td>
+                <div
+                  class="font-medium text-gray-900"
+                  x-text="person.name"
+                ></div>
+                <div
+                  class="text-sm text-gray-500"
+                  x-text="'ID: ' + person.id"
+                ></div>
+              </td>
+              <td>
+                <span
+                  :class="person.is_active ? 'status-assigned' : 'status-no-show'"
+                  x-text="person.is_active ? 'Active' : 'Inactive'"
+                ></span>
+              </td>
+              <td>
+                <div
+                  class="text-sm text-gray-900"
+                  x-text="getPersonnelStats(person.id).assignments + ' assignments'"
+                ></div>
+                <div
+                  class="text-xs text-gray-500"
+                  x-text="getPersonnelStats(person.id).difficulty + ' difficulty points'"
+                ></div>
+              </td>
+              <td>
+                <div
+                  class="text-sm"
+                  x-text="getPersonnelStats(person.id).lastAssignment || 'No assignments'"
+                ></div>
+              </td>
+              <td>
+                <div class="flex space-x-2">
+                  <button
+                    @click="viewPersonnelDetails(person.id)"
+                    class="text-blue-600 hover:text-blue-800 text-sm"
+                  >
+                    <i class="fas fa-eye mr-1"></i>
+                    View
+                  </button>
+                  <button
+                    @click="editPersonnel(person)"
+                    class="text-green-600 hover:text-green-800 text-sm"
+                  >
+                    <i class="fas fa-edit mr-1"></i>
+                    Edit
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </template>
+        </tbody>
+      </table>
+
+      <!-- Empty state -->
+      <div
+        x-show="!loading && filteredPersonnel.length === 0"
+        class="p-8 text-center text-gray-500"
+      >
+        <i class="fas fa-users text-4xl mb-3"></i>
+        <p class="text-lg font-medium">No personnel found</p>
+        <p class="text-sm">Try adjusting your search or filters</p>
+      </div>
+
+      <div x-show="loading" class="p-8 text-center">
+        <i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i>
+        <p class="mt-2 text-gray-500">Loading personnel...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Personnel Statistics Cards -->
+  <div class="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div class="bg-white p-6 rounded-lg shadow">
+      <div class="flex items-center">
+        <div class="flex-shrink-0">
+          <i class="fas fa-chart-bar text-3xl text-blue-500"></i>
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-medium text-gray-900">
+            Assignment Distribution
+          </h3>
+          <p class="text-sm text-gray-500">Average assignments per person</p>
+          <p
+            class="text-2xl font-bold text-blue-600"
+            x-text="averageAssignments"
+          ></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow">
+      <div class="flex items-center">
+        <div class="flex-shrink-0">
+          <i class="fas fa-trophy text-3xl text-yellow-500"></i>
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-medium text-gray-900">Top Performer</h3>
+          <p class="text-sm text-gray-500">Most assignments completed</p>
+          <p
+            class="text-lg font-bold text-yellow-600"
+            x-text="topPerformer"
+          ></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow">
+      <div class="flex items-center">
+        <div class="flex-shrink-0">
+          <i class="fas fa-clock text-3xl text-green-500"></i>
+        </div>
+        <div class="ml-4">
+          <h3 class="text-lg font-medium text-gray-900">Recent Activity</h3>
+          <p class="text-sm text-gray-500">Personnel added this month</p>
+          <p
+            class="text-2xl font-bold text-green-600"
+            x-text="recentlyAdded"
+          ></p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  function personnelPageData() {
+    return {
+      loading: false,
+      personnel: [],
+      filteredPersonnel: [],
+      stats: {},
+      statusFilter: "all",
+      searchQuery: "",
+
+      init() {
+        this.stats = window.serverData.stats || {};
+        this.personnel = window.serverData.personnel || [];
+        this.filterPersonnel();
+      },
+
+      filterPersonnel() {
+        let filtered = this.personnel;
+
+        // Apply status filter
+        if (this.statusFilter !== "all") {
+          filtered = filtered.filter((person) => {
+            if (this.statusFilter === "active") return person.is_active;
+            if (this.statusFilter === "inactive") return !person.is_active;
+            return true;
+          });
+        }
+
+        // Apply search filter
+        if (this.searchQuery.trim()) {
+          const query = this.searchQuery.toLowerCase();
+          filtered = filtered.filter(
+            (person) =>
+              person.name.toLowerCase().includes(query) ||
+              person.rank.toLowerCase().includes(query) ||
+              (person.rank + " " + person.name).toLowerCase().includes(query)
+          );
+        }
+
+        this.filteredPersonnel = filtered;
+      },
+
+      refreshData() {
+        window.location.reload();
+      },
+
+      viewPersonnelDetails(personId) {
+        // Implement personnel details view
+        console.log("View details for person:", personId);
+      },
+
+      editPersonnel(person) {
+        // Implement personnel editing
+        console.log("Edit person:", person);
+      },
+
+      openAddPersonnelModal() {
+        // Implement add personnel modal
+        console.log("Open add personnel modal");
+      },
+
+      getPersonnelStats(personId) {
+        // Mock implementation - replace with actual data
+        return {
+          assignments: Math.floor(Math.random() * 20),
+          difficulty: Math.floor(Math.random() * 100),
+          lastAssignment: Math.random() > 0.5 ? "2025-08-15" : null,
+        };
+      },
+
+      get activePersonnelCount() {
+        return this.personnel.filter((p) => p.is_active).length;
+      },
+
+      get averageAssignments() {
+        if (this.personnel.length === 0) return 0;
+        const total = this.personnel.reduce((sum, person) => {
+          return sum + this.getPersonnelStats(person.id).assignments;
+        }, 0);
+        return Math.round(total / this.personnel.length);
+      },
+
+      get topPerformer() {
+        if (this.personnel.length === 0) return "N/A";
+        let top = this.personnel[0];
+        let maxAssignments = 0;
+
+        this.personnel.forEach((person) => {
+          const assignments = this.getPersonnelStats(person.id).assignments;
+          if (assignments > maxAssignments) {
+            maxAssignments = assignments;
+            top = person;
+          }
+        });
+
+        return top.rank + " " + top.name;
+      },
+
+      get recentlyAdded() {
+        // Mock implementation - count personnel added this month
+        return Math.floor(Math.random() * 5);
+      },
+    };
+  }
+</script>
+{% endblock %}
