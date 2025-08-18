@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="en" x-data="dashboardData()" x-init="init()">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Duty Tracker - Military Assignment System</title>
+    <link href="/static/css/styles.css" rel="stylesheet" />
+    <script
+      src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"
+      defer
+    ></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-gray-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="military-primary shadow-lg">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+          <div class="flex items-center">
+            <i class="fas fa-shield-alt text-2xl mr-3"></i>
+            <span class="text-xl font-bold">Duty Tracker</span>
+          </div>
+          <div class="flex items-center space-x-4">
+            <span
+              class="text-sm"
+              x-text="`${stats.total_personnel || 0} Active Personnel`"
+            ></span>
+            <span
+              class="text-sm"
+              x-text="`${stats.active_assignments || 0} Assignments`"
+            ></span>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <!-- Dashboard Stats -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 mb-6">
+          <i class="fas fa-tachometer-alt mr-2"></i>
+          Dashboard
+        </h1>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <!-- Total Personnel Card -->
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-users text-3xl text-blue-500"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">
+                      Total Personnel
+                    </dt>
+                    <dd
+                      class="text-lg font-medium text-gray-900"
+                      x-text="stats.total_personnel || 0"
+                    ></dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Assignments Card -->
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-clipboard-list text-3xl text-green-500"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">
+                      Active Assignments
+                    </dt>
+                    <dd
+                      class="text-lg font-medium text-gray-900"
+                      x-text="stats.active_assignments || 0"
+                    ></dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Posts Covered Card -->
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-map-marker-alt text-3xl text-yellow-500"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">
+                      Posts Covered
+                    </dt>
+                    <dd
+                      class="text-lg font-medium text-gray-900"
+                      x-text="stats.posts_covered || 0"
+                    ></dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fairness Variance Card -->
+          <div class="bg-white overflow-hidden shadow rounded-lg">
+            <div class="p-5">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <i class="fas fa-balance-scale text-3xl text-purple-500"></i>
+                </div>
+                <div class="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt class="text-sm font-medium text-gray-500 truncate">
+                      Fairness Variance
+                    </dt>
+                    <dd
+                      class="text-lg font-medium text-gray-900"
+                      x-text="formatNumber(stats.fairness_variance || 0, 2)"
+                    ></dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="mb-6 flex flex-wrap gap-4">
+        <button
+          @click="openAssignmentModal()"
+          class="military-primary px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
+        >
+          <i class="fas fa-plus mr-2"></i>
+          New Assignment
+        </button>
+
+        <button
+          @click="openImportModal()"
+          class="bg-green-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-green-700 transition-colors"
+        >
+          <i class="fas fa-upload mr-2"></i>
+          Import Chat
+        </button>
+
+        <input
+          type="date"
+          x-model="selectedDate"
+          @change="loadData()"
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+
+        <button
+          @click="loadData()"
+          class="military-secondary px-6 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
+        >
+          <i class="fas fa-sync mr-2"></i>
+          Refresh
+        </button>
+
+        <button
+          @click="recalculateFairness()"
+          class="bg-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:bg-purple-700 transition-colors"
+          :disabled="recalculating"
+        >
+          <i class="fas fa-balance-scale mr-2"></i>
+          <span x-show="!recalculating">Fix Fairness</span>
+          <span x-show="recalculating">Fixing...</span>
+        </button>
+      </div>
+
+      <!-- Main Content Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Assignments Table -->
+        <div class="lg:col-span-2">
+          <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <div class="px-4 py-5 sm:px-6">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h3 class="text-lg leading-6 font-medium text-gray-900">
+                    <i class="fas fa-list-alt mr-2"></i>
+                    Assignments
+                  </h3>
+                  <p class="mt-1 text-sm text-gray-500">
+                    <span
+                      x-text="selectedDate ? 'For ' + formatDate(selectedDate) : 'Latest assignments'"
+                    ></span>
+                    <span class="ml-2">
+                      (<span x-text="displayAssignments.length"></span>
+                      <span
+                        x-text="displayAssignments.length === 1 ? 'assignment' : 'assignments'"
+                      ></span
+                      >)
+                    </span>
+                  </p>
+                </div>
+                <button
+                  @click="selectedDate = new Date().toISOString().split('T')[0]; loadData()"
+                  class="text-sm text-blue-600 hover:text-blue-800"
+                  x-show="selectedDate !== new Date().toISOString().split('T')[0]"
+                >
+                  Show Today
+                </button>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="responsive-table" x-show="!loading">
+                <thead>
+                  <tr>
+                    <th>Personnel</th>
+                    <th>Post</th>
+                    <th>Date</th>
+                    <th>Time</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template
+                    x-for="assignment in displayAssignments"
+                    :key="assignment.id"
+                  >
+                    <tr class="fade-in">
+                      <td>
+                        <div class="flex items-center">
+                          <span
+                            class="rank-badge mr-2"
+                            x-text="assignment.person.rank"
+                          ></span>
+                          <span x-text="assignment.person.name"></span>
+                        </div>
+                      </td>
+                      <td>
+                        <span
+                          :class="getPostTypeClass(assignment.post.post_type.name)"
+                          x-text="assignment.post.name"
+                        ></span>
+                      </td>
+                      <td x-text="formatDate(assignment.duty_date)"></td>
+                      <td>
+                        <span x-text="formatTime(assignment.start_time)"></span>
+                        <span x-show="assignment.end_time"> - </span>
+                        <span x-text="formatTime(assignment.end_time)"></span>
+                      </td>
+                      <td>
+                        <span
+                          :class="getStatusClass(assignment.status)"
+                          x-text="assignment.status"
+                        ></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+
+              <!-- Empty state for no assignments -->
+              <div
+                x-show="!loading && displayAssignments.length === 0"
+                class="p-8 text-center text-gray-500"
+              >
+                <i class="fas fa-calendar-times text-4xl mb-3"></i>
+                <p class="text-lg font-medium">No assignments found</p>
+                <p
+                  class="text-sm"
+                  x-text="selectedDate ? 'for ' + formatDate(selectedDate) : 'in the system'"
+                ></p>
+                <button
+                  @click="openImportModal()"
+                  class="mt-4 text-blue-600 hover:text-blue-800 text-sm font-medium"
+                >
+                  <i class="fas fa-upload mr-1"></i>
+                  Import assignments
+                </button>
+              </div>
+
+              <div x-show="loading" class="p-8 text-center">
+                <i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i>
+                <p class="mt-2 text-gray-500">Loading assignments...</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fairness Tracker -->
+        <div>
+          <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <div class="px-4 py-5 sm:px-6">
+              <div class="flex justify-between items-center">
+                <div>
+                  <h3 class="text-lg leading-6 font-medium text-gray-900">
+                    <i class="fas fa-balance-scale mr-2"></i>
+                    Fairness Tracker
+                  </h3>
+                  <p class="mt-1 text-sm text-gray-500">
+                    Assignment distribution and fairness scores
+                  </p>
+                </div>
+                <button
+                  @click="showPostDistribution = !showPostDistribution"
+                  class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                >
+                  <span x-show="!showPostDistribution">Show Post Details</span>
+                  <span x-show="showPostDistribution">Show Summary</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Summary View -->
+            <div
+              x-show="!showPostDistribution"
+              class="max-h-96 overflow-y-auto"
+            >
+              <template x-for="stat in fairnessStats" :key="stat.person_id">
+                <div
+                  :class="getFairnessClass(stat.fairness_score)"
+                  class="border-b border-gray-200 p-3"
+                >
+                  <div class="flex justify-between items-center">
+                    <div>
+                      <span
+                        class="font-medium"
+                        x-text="stat.person_name"
+                      ></span>
+                      <div class="text-sm text-gray-600">
+                        <span x-text="stat.total_assignments"></span>
+                        assignments
+                        <span
+                          class="ml-2"
+                          x-text="stat.total_difficulty_points"
+                        ></span>
+                        pts
+                      </div>
+                    </div>
+                    <div class="text-right">
+                      <div
+                        class="text-sm font-medium"
+                        x-text="formatNumber(stat.fairness_score, 1)"
+                      ></div>
+                      <div
+                        class="text-xs text-gray-500"
+                        x-show="stat.consecutive_standby > 0"
+                      >
+                        <span x-text="stat.consecutive_standby"></span> standby
+                      </div>
+                    </div>
+                  </div>
+                  <div
+                    x-show="stat.last_assignment_date"
+                    class="text-xs text-gray-500 mt-1"
+                  >
+                    Last:
+                    <span x-text="formatDate(stat.last_assignment_date)"></span>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Empty state for fairness stats -->
+              <div
+                x-show="!loading && fairnessStats.length === 0"
+                class="p-6 text-center text-gray-500"
+              >
+                <i class="fas fa-users text-3xl mb-2"></i>
+                <p class="font-medium">No fairness data available</p>
+                <p class="text-sm">
+                  Click "Fix Fairness" to calculate tracking data
+                </p>
+              </div>
+            </div>
+
+            <!-- Post Distribution View -->
+            <div x-show="showPostDistribution" class="max-h-96 overflow-y-auto">
+              <template
+                x-for="personnel in postDistributionStats.personnel_stats"
+                :key="personnel.person_id"
+              >
+                <div class="border-b border-gray-200 p-3">
+                  <div class="flex justify-between items-center mb-2">
+                    <div>
+                      <span
+                        class="font-medium"
+                        x-text="personnel.person_name"
+                      ></span>
+                      <span
+                        class="text-sm text-gray-500 ml-2"
+                        x-text="personnel.rank"
+                      ></span>
+                    </div>
+                    <div class="text-right">
+                      <span
+                        class="text-sm font-medium"
+                        x-text="personnel.total_assignments"
+                      ></span>
+                      <span class="text-xs text-gray-500"> total</span>
+                    </div>
+                  </div>
+
+                  <!-- Post Type Breakdown -->
+                  <div class="space-y-1">
+                    <template
+                      x-for="post in personnel.post_assignments"
+                      :key="post.post_type"
+                    >
+                      <div class="flex justify-between items-center text-xs">
+                        <div class="flex items-center">
+                          <span
+                            :class="getPostTypeClass(post.post_type)"
+                            class="text-xs px-2 py-1 rounded"
+                            x-text="post.post_type"
+                          ></span>
+                        </div>
+                        <div class="flex items-center space-x-2 text-gray-600">
+                          <span x-text="post.count"></span>
+                          <span class="text-gray-400">•</span>
+                          <span x-text="post.percentage_of_total + '%'"></span>
+                          <span class="text-gray-400">of type</span>
+                          <span class="text-gray-400">•</span>
+                          <span x-text="post.percentage_of_person + '%'"></span>
+                          <span class="text-gray-400">of person</span>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Empty state for post distribution -->
+              <div
+                x-show="!loading && (!postDistributionStats || postDistributionStats.personnel_stats.length === 0)"
+                class="p-6 text-center text-gray-500"
+              >
+                <i class="fas fa-chart-bar text-3xl mb-2"></i>
+                <p class="font-medium">No assignment data available</p>
+                <p class="text-sm">
+                  Import assignments to see post distribution
+                </p>
+              </div>
+            </div>
+
+            <!-- Footer with stats -->
+            <div class="border-t bg-gray-50 px-4 py-3">
+              <div
+                class="flex justify-between items-center text-sm text-gray-600"
+              >
+                <div x-show="!showPostDistribution">
+                  <span
+                    x-text="`${fairnessStats.length} personnel tracked`"
+                  ></span>
+                </div>
+                <div x-show="showPostDistribution">
+                  <span
+                    x-text="postDistributionStats ? `${postDistributionStats.total_personnel} personnel • ${postDistributionStats.total_assignments} assignments` : 'No data'"
+                  ></span>
+                </div>
+                <div x-show="showPostDistribution && postDistributionStats">
+                  <span class="text-xs">
+                    Post types:
+                    <template
+                      x-for="(count, postType) in postDistributionStats.post_type_totals"
+                      :key="postType"
+                    >
+                      <span class="ml-1">
+                        <span x-text="postType"></span> (<span
+                          x-text="count"
+                        ></span
+                        >)
+                      </span>
+                    </template>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Assignment Modal -->
+    <div
+      x-show="showAssignmentModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      style="display: none"
+    >
+      <div
+        class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
+      >
+        <div class="mt-3 text-center">
+          <h3 class="text-lg font-medium text-gray-900">
+            Create New Assignment
+          </h3>
+          <form @submit.prevent="createAssignment()" class="mt-4 space-y-4">
+            <!-- Personnel Selection -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Personnel</label
+              >
+              <select
+                x-model="newAssignment.person_id"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Personnel</option>
+                <template
+                  x-for="person in getSuggestedPersonnel()"
+                  :key="person.id"
+                >
+                  <option :value="person.id" x-text="person.full_name"></option>
+                </template>
+              </select>
+            </div>
+
+            <!-- Post Selection -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Post</label
+              >
+              <select
+                x-model="newAssignment.post_id"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">Select Post</option>
+                <template x-for="post in posts" :key="post.id">
+                  <option
+                    :value="post.id"
+                    x-text="post.name + ' (' + post.post_type.name + ')'"
+                  ></option>
+                </template>
+              </select>
+            </div>
+
+            <!-- Date -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Duty Date</label
+              >
+              <input
+                type="date"
+                x-model="newAssignment.duty_date"
+                required
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <!-- Times -->
+            <div class="grid grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >Start Time</label
+                >
+                <input
+                  type="time"
+                  x-model="newAssignment.start_time"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1"
+                  >End Time</label
+                >
+                <input
+                  type="time"
+                  x-model="newAssignment.end_time"
+                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            <!-- Notes -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Notes</label
+              >
+              <textarea
+                x-model="newAssignment.notes"
+                rows="3"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+              ></textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 military-primary py-2 px-4 rounded-md text-white font-medium hover:opacity-90"
+              >
+                Create Assignment
+              </button>
+              <button
+                type="button"
+                @click="showAssignmentModal = false"
+                class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 px-4 rounded-md text-gray-700 font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Import Chat Modal -->
+    <div
+      x-show="showImportModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+      style="display: none"
+    >
+      <div
+        class="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white"
+      >
+        <div class="mt-3">
+          <h3 class="text-lg font-medium text-gray-900 text-center">
+            Import Group Chat Assignments
+          </h3>
+          <form
+            @submit.prevent="importChatAssignments()"
+            class="mt-4 space-y-4"
+          >
+            <!-- Date Selection -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Duty Date</label
+              >
+              <input
+                type="date"
+                x-model="importData.duty_date"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                required
+              />
+            </div>
+
+            <!-- Chat Text -->
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1"
+                >Group Chat Text</label
+              >
+              <textarea
+                x-model="importData.chat_text"
+                rows="12"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 font-mono text-sm"
+                placeholder="🚐 SOG:&#10;SGT Lastre &#10;&#10;💻 CQ: &#10;Meet at 0700 in the TOC &#10;SPC Veneroso..."
+                required
+              ></textarea>
+            </div>
+
+            <!-- Buttons -->
+            <div class="flex gap-3 pt-4">
+              <button
+                type="submit"
+                class="flex-1 military-primary py-2 px-4 rounded-md text-white font-medium hover:opacity-90"
+                :disabled="importing"
+              >
+                <span x-show="!importing">Import Assignments</span>
+                <span x-show="importing">Importing...</span>
+              </button>
+              <button
+                type="button"
+                @click="showImportModal = false"
+                class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 px-4 rounded-md text-gray-700 font-medium"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Pass server data to Alpine.js
+      window.serverData = {
+        stats: {{ stats | tojson | safe }},
+        fairness_stats: {{ fairness_stats | tojson | safe }},
+        post_distribution_stats: {{ post_distribution_stats | tojson | safe }}
+      };
+    </script>
+    <script src="/static/js/app.js"></script>
+  </body>
+</html>

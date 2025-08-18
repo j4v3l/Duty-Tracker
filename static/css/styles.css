@@ -1,0 +1,200 @@
+/* TailwindCSS custom styles for Duty Tracker */
+@import url("https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css");
+
+/* Custom military theme colors */
+:root {
+  --military-green: #2d5016;
+  --military-olive: #4f6f39;
+  --military-tan: #c4a967;
+  --military-gray: #696969;
+  --danger-red: #dc2626;
+  --warning-yellow: #f59e0b;
+  --success-green: #059669;
+}
+
+/* Custom utility classes */
+.military-primary {
+  background-color: var(--military-green);
+  color: white;
+}
+
+.military-secondary {
+  background-color: var(--military-olive);
+  color: white;
+}
+
+.military-accent {
+  background-color: var(--military-tan);
+  color: var(--military-green);
+}
+
+/* Status badges */
+.status-assigned {
+  background-color: #dbeafe;
+  color: #1e40af;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-completed {
+  background-color: #d1fae5;
+  color: #047857;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.status-no-show {
+  background-color: #fecaca;
+  color: #b91c1c;
+  padding: 0.25rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+/* Post type badges */
+.post-sog {
+  background-color: #ef4444;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.post-cq {
+  background-color: #3b82f6;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.post-ecp {
+  background-color: #eab308;
+  color: black;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.post-vcp {
+  background-color: #22c55e;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.post-rover {
+  background-color: #a855f7;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+.post-standby {
+  background-color: #6b7280;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: bold;
+}
+
+/* Fairness indicators */
+.fairness-high {
+  background-color: #fecaca;
+  border-left: 4px solid #ef4444;
+  padding: 0.5rem;
+}
+
+.fairness-medium {
+  background-color: #fef3c7;
+  border-left: 4px solid #f59e0b;
+  padding: 0.5rem;
+}
+
+.fairness-low {
+  background-color: #d1fae5;
+  border-left: 4px solid #10b981;
+  padding: 0.5rem;
+}
+
+/* Animation classes */
+.fade-in {
+  animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive table */
+.responsive-table {
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.responsive-table th {
+  padding: 0.75rem 1.5rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.responsive-table td {
+  padding: 1rem 1.5rem;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: #111827;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Military rank styling */
+.rank-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #374151;
+  color: white;
+  border-radius: 0.25rem;
+}
+
+/* Equipment list styling */
+.equipment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.equipment-item {
+  background-color: #e5e7eb;
+  color: #374151;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+}
