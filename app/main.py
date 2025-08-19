@@ -156,6 +156,20 @@ async def initialize_data():
 
 
 # Routes
+@app.get("/robots.txt", response_class=HTMLResponse)
+async def robots_txt():
+    """Serve robots.txt file."""
+    from fastapi.responses import PlainTextResponse
+    return PlainTextResponse("""User-agent: *
+Disallow: /api/
+Allow: /""")
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Serve favicon to prevent 404 errors."""
+    from fastapi.responses import Response
+    return Response(status_code=204)  # No Content
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request, db: Session = Depends(get_db)):
     """Main dashboard page."""
@@ -166,10 +180,7 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
     # Convert SQLAlchemy objects to dictionaries for JSON serialization
     fairness_stats = []
     for fs in fairness_stats_raw:
-        fs_dict = schemas.FairnessStats.model_validate(fs).model_dump()
-        # Convert datetime to ISO string for JSON serialization
-        if fs_dict.get('last_assignment_date'):
-            fs_dict['last_assignment_date'] = fs_dict['last_assignment_date'].isoformat()
+        fs_dict = schemas.FairnessStats.model_validate(fs).model_dump(mode='json')
         fairness_stats.append(fs_dict)
     
     return templates.TemplateResponse(
@@ -187,7 +198,10 @@ async def dashboard(request: Request, db: Session = Depends(get_db)):
 async def personnel_page(request: Request, db: Session = Depends(get_db)):
     """Total Personnel page."""
     stats = crud.get_dashboard_stats(db)
-    personnel = crud.get_personnel(db)
+    personnel_db = crud.get_personnel(db)
+    
+    # Convert SQLAlchemy models to dictionaries for JSON serialization
+    personnel = [schemas.PersonnelResponse.model_validate(person).model_dump(mode='json') for person in personnel_db]
     
     return templates.TemplateResponse(
         "personnel.html",
@@ -203,7 +217,14 @@ async def personnel_page(request: Request, db: Session = Depends(get_db)):
 async def assignments_page(request: Request, db: Session = Depends(get_db)):
     """Active Assignments page."""
     stats = crud.get_dashboard_stats(db)
-    assignments = crud.get_assignments(db, limit=1000)  # Get more assignments for the page
+    assignments_db = crud.get_assignments(db, limit=1000)  # Get more assignments for the page
+    
+    # Convert SQLAlchemy models to JSON-serializable dictionaries
+    assignments = []
+    for assignment in assignments_db:
+        # Use model_dump with mode='json' to handle datetime serialization
+        assignment_dict = schemas.AssignmentResponse.model_validate(assignment).model_dump(mode='json')
+        assignments.append(assignment_dict)
     
     return templates.TemplateResponse(
         "assignments.html",
@@ -219,8 +240,12 @@ async def assignments_page(request: Request, db: Session = Depends(get_db)):
 async def posts_page(request: Request, db: Session = Depends(get_db)):
     """Posts Covered page."""
     stats = crud.get_dashboard_stats(db)
-    posts = crud.get_posts(db)
-    post_types = crud.get_post_types(db)
+    posts_db = crud.get_posts(db)
+    post_types_db = crud.get_post_types(db)
+    
+    # Convert SQLAlchemy models to dictionaries for JSON serialization
+    posts = [schemas.PostResponse.model_validate(post).model_dump(mode='json') for post in posts_db]
+    post_types = [schemas.PostTypeResponse.model_validate(post_type).model_dump(mode='json') for post_type in post_types_db]
     
     return templates.TemplateResponse(
         "posts.html",
@@ -243,10 +268,7 @@ async def fairness_page(request: Request, db: Session = Depends(get_db)):
     # Convert SQLAlchemy objects to dictionaries for JSON serialization
     fairness_stats = []
     for fs in fairness_stats_raw:
-        fs_dict = schemas.FairnessStats.model_validate(fs).model_dump()
-        # Convert datetime to ISO string for JSON serialization
-        if fs_dict.get('last_assignment_date'):
-            fs_dict['last_assignment_date'] = fs_dict['last_assignment_date'].isoformat()
+        fs_dict = schemas.FairnessStats.model_validate(fs).model_dump(mode='json')
         fairness_stats.append(fs_dict)
     
     return templates.TemplateResponse(
@@ -256,6 +278,29 @@ async def fairness_page(request: Request, db: Session = Depends(get_db)):
             "stats": stats,
             "fairness_stats": fairness_stats,
             "post_distribution_stats": post_distribution_stats
+        }
+    )
+
+
+@app.get("/shifts", response_class=HTMLResponse)
+async def shifts_page(request: Request, db: Session = Depends(get_db)):
+    """Shifts Schedule page."""
+    stats = crud.get_dashboard_stats(db)
+    assignments_db = crud.get_assignments(db, limit=1000)
+    
+    # Convert SQLAlchemy models to JSON-serializable dictionaries
+    assignments = []
+    for assignment in assignments_db:
+        # Use model_dump with mode='json' to handle datetime serialization
+        assignment_dict = schemas.AssignmentResponse.model_validate(assignment).model_dump(mode='json')
+        assignments.append(assignment_dict)
+    
+    return templates.TemplateResponse(
+        "shifts.html",
+        {
+            "request": request,
+            "stats": stats,
+            "assignments": assignments
         }
     )
 
@@ -313,9 +358,7 @@ def get_fairness_stats(db: Session = Depends(get_db)):
     # Convert to dictionaries and handle datetime serialization
     fairness_stats = []
     for fs in fairness_stats_raw:
-        fs_dict = schemas.FairnessStats.model_validate(fs).model_dump()
-        if fs_dict.get('last_assignment_date'):
-            fs_dict['last_assignment_date'] = fs_dict['last_assignment_date'].isoformat()
+        fs_dict = schemas.FairnessStats.model_validate(fs).model_dump(mode='json')
         fairness_stats.append(fs_dict)
     
     return fairness_stats

@@ -1,0 +1,345 @@
+{% extends "base.html" %} {% block title %}Shifts Schedule - Duty Tracker{%
+endblock %} {% block head %}
+<script>
+  // Pass server data to Alpine.js
+  window.serverData = {
+    stats: {{ stats | tojson | safe }},
+    assignments: {{ assignments | tojson | safe }}
+  };
+</script>
+{% endblock %} {% block content %}
+<div x-data="shiftsPageData()" x-init="init()">
+  <!-- Page Header -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">
+          <i class="fas fa-calendar-alt mr-2"></i>
+          Shifts Schedule
+        </h1>
+        <p class="text-gray-600">View and manage duty shift schedules</p>
+      </div>
+
+      <!-- Date Filter -->
+      <div class="flex items-center space-x-4">
+        <div>
+          <label
+            for="date-filter"
+            class="block text-sm font-medium text-gray-700 mb-1"
+            >Filter by Date</label
+          >
+          <input
+            type="date"
+            id="date-filter"
+            x-model="selectedDate"
+            class="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        <button
+          @click="clearDateFilter"
+          class="px-4 py-2 text-sm bg-gray-500 text-white rounded-md hover:bg-gray-600 transition-colors"
+        >
+          Clear Filter
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div x-show="loading" class="text-center py-8">
+    <div
+      class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+    ></div>
+    <p class="mt-2 text-gray-600">Loading shifts...</p>
+  </div>
+
+  <!-- Schedule View -->
+  <div x-show="!loading" class="bg-white rounded-lg shadow">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-semibold text-gray-900">
+        Schedule Overview
+        <span x-show="selectedDate" class="text-sm font-normal text-gray-500">
+          - <span x-text="formatDate(selectedDate)"></span>
+        </span>
+      </h2>
+      <p class="text-sm text-gray-600 mt-1">
+        Total assignments: <span x-text="filteredAssignments.length"></span>
+      </p>
+    </div>
+
+    <!-- Schedule Grid -->
+    <div class="overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Date
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Personnel
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Post
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Time
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Status
+            </th>
+            <th
+              class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+            >
+              Notes
+            </th>
+          </tr>
+        </thead>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <template
+            x-for="assignment in paginatedAssignments"
+            :key="assignment.id"
+          >
+            <tr class="hover:bg-gray-50">
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <span x-text="formatDate(assignment.duty_date)"></span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <div class="flex items-center">
+                  <div class="flex-shrink-0 h-8 w-8">
+                    <div
+                      class="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-medium"
+                    >
+                      <span
+                        x-text="assignment.person?.rank?.charAt(0) || 'U'"
+                      ></span>
+                    </div>
+                  </div>
+                  <div class="ml-3">
+                    <div class="text-sm font-medium text-gray-900">
+                      <span
+                        x-text="assignment.person?.rank || 'Unknown'"
+                      ></span>
+                      <span
+                        x-text="assignment.person?.name || 'Unknown'"
+                      ></span>
+                    </div>
+                  </div>
+                </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span
+                  class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full"
+                >
+                  <span x-text="assignment.post?.name || 'Unknown'"></span>
+                </span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                <span x-text="assignment.start_time || 'TBD'"></span>
+                <span x-show="assignment.end_time">
+                  - <span x-text="assignment.end_time"></span
+                ></span>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap">
+                <span
+                  class="px-2 py-1 text-xs font-medium rounded-full"
+                  :class="{
+                    'bg-green-100 text-green-800': assignment.status === 'completed',
+                    'bg-yellow-100 text-yellow-800': assignment.status === 'assigned',
+                    'bg-red-100 text-red-800': assignment.status === 'no-show',
+                    'bg-gray-100 text-gray-800': !assignment.status || assignment.status === 'unknown'
+                  }"
+                  x-text="assignment.status || 'assigned'"
+                >
+                </span>
+              </td>
+              <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
+                <span x-text="assignment.notes || '-'"></span>
+              </td>
+            </tr>
+          </template>
+          <tr x-show="filteredAssignments.length === 0">
+            <td colspan="6" class="px-6 py-8 text-center text-gray-500">
+              <div class="flex flex-col items-center">
+                <i
+                  class="fas fa-calendar-times text-4xl text-gray-300 mb-2"
+                ></i>
+                <p class="text-lg font-medium">No shifts scheduled</p>
+                <p class="text-sm">
+                  <span x-show="selectedDate"
+                    >No shifts found for the selected date.</span
+                  >
+                  <span x-show="!selectedDate"
+                    >There are no shift assignments to display.</span
+                  >
+                </p>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div
+      x-show="totalPages > 1"
+      class="px-6 py-4 border-t border-gray-200 flex items-center justify-between"
+    >
+      <div class="text-sm text-gray-700">
+        Showing <span x-text="((currentPage - 1) * itemsPerPage) + 1"></span> to
+        <span
+          x-text="Math.min(currentPage * itemsPerPage, filteredAssignments.length)"
+        ></span>
+        of <span x-text="filteredAssignments.length"></span> assignments
+      </div>
+      <div class="flex space-x-1">
+        <button
+          @click="previousPage"
+          :disabled="currentPage === 1"
+          :class="currentPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+          class="px-3 py-2 text-sm border border-gray-300 rounded-md transition-colors"
+        >
+          Previous
+        </button>
+        <template x-for="page in visiblePages" :key="page">
+          <button
+            @click="goToPage(page)"
+            :class="page === currentPage ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-100'"
+            class="px-3 py-2 text-sm border border-gray-300 rounded-md transition-colors"
+            x-text="page"
+          ></button>
+        </template>
+        <button
+          @click="nextPage"
+          :disabled="currentPage === totalPages"
+          :class="currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100'"
+          class="px-3 py-2 text-sm border border-gray-300 rounded-md transition-colors"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function shiftsPageData() {
+    return {
+      assignments: [],
+      stats: {},
+      loading: false,
+      selectedDate: "",
+      currentPage: 1,
+      itemsPerPage: 20,
+
+      async init() {
+        // Use server data if available
+        if (window.serverData) {
+          this.stats = window.serverData.stats || {};
+          this.assignments = window.serverData.assignments || [];
+        }
+        await this.loadData();
+      },
+
+      async loadData() {
+        this.loading = true;
+        try {
+          if (!window.serverData) {
+            const [assignmentsRes, statsRes] = await Promise.all([
+              fetch("/api/assignments?limit=1000"),
+              fetch("/api/dashboard"),
+            ]);
+
+            this.assignments = await assignmentsRes.json();
+            this.stats = await statsRes.json();
+          }
+        } catch (error) {
+          console.error("Failed to load shifts data:", error);
+          this.assignments = this.assignments || [];
+          this.stats = this.stats || {};
+        } finally {
+          this.loading = false;
+        }
+      },
+
+      get filteredAssignments() {
+        if (!this.selectedDate) return this.assignments;
+
+        return this.assignments.filter((assignment) => {
+          if (!assignment.duty_date) return false;
+          const assignmentDate = new Date(assignment.duty_date)
+            .toISOString()
+            .split("T")[0];
+          return assignmentDate === this.selectedDate;
+        });
+      },
+
+      get paginatedAssignments() {
+        const start = (this.currentPage - 1) * this.itemsPerPage;
+        const end = start + this.itemsPerPage;
+        return this.filteredAssignments.slice(start, end);
+      },
+
+      get totalPages() {
+        return Math.ceil(this.filteredAssignments.length / this.itemsPerPage);
+      },
+
+      get visiblePages() {
+        const pages = [];
+        const maxVisible = 5;
+        let start = Math.max(1, this.currentPage - Math.floor(maxVisible / 2));
+        let end = Math.min(this.totalPages, start + maxVisible - 1);
+
+        if (end - start + 1 < maxVisible) {
+          start = Math.max(1, end - maxVisible + 1);
+        }
+
+        for (let i = start; i <= end; i++) {
+          pages.push(i);
+        }
+        return pages;
+      },
+
+      clearDateFilter() {
+        this.selectedDate = "";
+        this.currentPage = 1;
+      },
+
+      formatDate(dateString) {
+        if (!dateString) return "No Date";
+        const date = new Date(dateString);
+        return date.toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      },
+
+      previousPage() {
+        if (this.currentPage > 1) {
+          this.currentPage--;
+        }
+      },
+
+      nextPage() {
+        if (this.currentPage < this.totalPages) {
+          this.currentPage++;
+        }
+      },
+
+      goToPage(page) {
+        this.currentPage = page;
+      },
+    };
+  }
+</script>
+{% endblock %}
