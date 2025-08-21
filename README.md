@@ -1,52 +1,62 @@
 # Duty Tracker
 
-A military duty assignment tracking system built with FastAPI, Alpine.js, and TailwindCSS.
+A simple website to track who is assigned to military duty posts. See who is working, where, and when.
 
-## Features
+---
 
-- Track personnel assignments to various duty posts
-- Monitor fairness in duty distribution
-- Manage different types of posts (SOG, CQ, ECP, VCP, ROVER, Stand by)
-- Equipment requirements tracking
-- Interactive web interface
+## Screenshots
 
-## Setup
+- Dashboard: ![Dashboard](./screenshots/dashboard.png)
+- Personnel: ![Personnel](./screenshots/personnel.png)
+- Assignments: ![Assignments](./screenshots/assignments.png)
+- Posts: ![Posts](./screenshots/posts.png)
+- Fairness: ![Fairness](./screenshots/fairness.png)
 
-1. Install dependencies:
-```bash
-uv sync --group dev
-```
+---
 
-2. Run the development server:
-```bash
-uv run uvicorn app.main:app --reload
-```
+## How to Start
 
-3. Open your browser to `http://localhost:8000`
+1. **Install**
+   - If you see `install.bat`, double-click it.
+   - Or ask someone to help you run:
+     ```bash
+     uv sync --group dev
+     ```
 
-## Project Structure
+2. **Run**
+   - If you see `start.bat`, double-click it.
+   - Or ask someone to help you run:
+     ```bash
+     uv run uvicorn app.main:app --reload
+     ```
+
+3. **Open Website**
+   - Open Chrome, Edge, or Firefox.
+   - Go to: [http://localhost:8000](http://localhost:8000)
+
+---
+
+## How to Use
+
+- Click the menu for Personnel, Assignments, Posts, or Fairness.
+- Click "Add" or "Edit" to change things.
+- Fill in the pop-up and click "Save".
+
+---
+
+## Problems?
+
+- If it doesn't work, ask someone for help or contact [j4v3l](mailto:your-email@example.com).
+
+---
+
+## Files & Folders
 
 ```
 duty-tracker/
-├── app/
-│   ├── main.py          # FastAPI application
-│   ├── models.py        # Database models
-│   ├── schemas.py       # Pydantic schemas
-│   ├── crud.py          # Database operations
-│   ├── database.py      # Database setup
-│   └── routers/         # API routes
-├── static/
-│   ├── css/            # TailwindCSS styles
-│   └── js/             # Alpine.js components
-├── templates/          # Jinja2 templates
-└── tests/              # Test files
+  app/         # Main code
+  static/      # Styles and scripts
+  templates/   # Web pages
+  tests/       # Automated tests
+  screenshots/ # Your screenshots
 ```
-
-## API Endpoints
-
-- `GET /` - Main dashboard
-- `GET /api/personnel` - List all personnel
-- `GET /api/posts` - List all posts
-- `GET /api/assignments` - List assignments
-- `POST /api/assignments` - Create new assignment
-- `GET /api/fairness` - Get fairness statistics
