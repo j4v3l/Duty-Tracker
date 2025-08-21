@@ -30,6 +30,17 @@ def create_personnel(db: Session, personnel: PersonnelCreate) -> Personnel:
     return db_personnel
 
 
+def update_personnel(db: Session, person_id: int, personnel: PersonnelCreate) -> Personnel:
+    """Update personnel."""
+    db_personnel = db.query(Personnel).filter(Personnel.id == person_id).first()
+    if db_personnel:
+        for key, value in personnel.dict().items():
+            setattr(db_personnel, key, value)
+        db.commit()
+        db.refresh(db_personnel)
+    return db_personnel
+
+
 def get_post_types(db: Session) -> List[PostType]:
     """Get all post types."""
     return db.query(PostType).all()
@@ -58,6 +69,30 @@ def create_post(db: Session, post: PostCreate) -> Post:
     return db_post
 
 
+def update_post(db: Session, post_id: int, post_update: PostCreate) -> Optional[Post]:
+    """Update an existing post."""
+    db_post = db.query(Post).filter(Post.id == post_id).first()
+    if db_post:
+        update_data = post_update.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_post, key, value)
+        db.commit()
+        db.refresh(db_post)
+    return db_post
+
+
+def update_post_type(db: Session, post_type_id: int, post_type_update: PostTypeCreate) -> Optional[PostType]:
+    """Update an existing post type."""
+    db_post_type = db.query(PostType).filter(PostType.id == post_type_id).first()
+    if db_post_type:
+        update_data = post_type_update.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_post_type, key, value)
+        db.commit()
+        db.refresh(db_post_type)
+    return db_post_type
+
+
 def get_assignments(
     db: Session, 
     skip: int = 0, 
@@ -81,6 +116,29 @@ def create_assignment(db: Session, assignment: AssignmentCreate) -> Assignment:
     
     db.commit()
     db.refresh(db_assignment)
+    return db_assignment
+
+
+def update_assignment(db: Session, assignment_id: int, assignment_update: AssignmentCreate) -> Optional[Assignment]:
+    """Update an existing assignment."""
+    db_assignment = db.query(Assignment).filter(Assignment.id == assignment_id).first()
+    if db_assignment:
+        # Store old values for fairness tracking update
+        old_person_id = db_assignment.person_id
+        old_post_id = db_assignment.post_id
+        
+        # Update assignment
+        update_data = assignment_update.dict(exclude_unset=True)
+        for key, value in update_data.items():
+            setattr(db_assignment, key, value)
+        
+        # Update fairness tracking if person or post changed
+        if (assignment_update.person_id != old_person_id or 
+            assignment_update.post_id != old_post_id):
+            update_fairness_tracking(db, assignment_update.person_id, assignment_update.post_id)
+            
+        db.commit()
+        db.refresh(db_assignment)
     return db_assignment
 
 

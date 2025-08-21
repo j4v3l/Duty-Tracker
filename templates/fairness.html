@@ -406,6 +406,123 @@ endblock %} {% block head %}
       </div>
     </div>
   </div>
+
+  <!-- Personnel Details Modal -->
+  <div
+    x-show="showPersonnelModal"
+    x-cloak
+    class="fixed inset-0 z-50 overflow-y-auto"
+    x-transition:enter="transition-opacity duration-300"
+    x-transition:enter-start="opacity-0"
+    x-transition:enter-end="opacity-100"
+    x-transition:leave="transition-opacity duration-200"
+    x-transition:leave-start="opacity-100"
+    x-transition:leave-end="opacity-0"
+    @click="showPersonnelModal = false"
+  >
+    <div class="flex items-center justify-center min-h-screen px-4 py-6">
+      <div
+        class="bg-white rounded-lg shadow-lg max-w-md w-full p-6"
+        @click.stop
+      >
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Personnel Details</h3>
+          <button
+            @click="showPersonnelModal = false"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+
+        <template x-if="personnelDetails">
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700"
+                >Name</label
+              >
+              <p
+                class="mt-1 text-sm text-gray-900"
+                x-text="personnelDetails.name"
+              ></p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700"
+                >Rank</label
+              >
+              <p
+                class="mt-1 text-sm text-gray-900"
+                x-text="personnelDetails.rank"
+              ></p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700"
+                >Position</label
+              >
+              <p
+                class="mt-1 text-sm text-gray-900"
+                x-text="personnelDetails.position"
+              ></p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700"
+                >Active</label
+              >
+              <span
+                class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                :class="personnelDetails.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'"
+                x-text="personnelDetails.is_active ? 'Yes' : 'No'"
+              ></span>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700"
+                >Contact</label
+              >
+              <p
+                class="mt-1 text-sm text-gray-900"
+                x-text="personnelDetails.contact_info || 'N/A'"
+              ></p>
+            </div>
+
+            <div>
+              <label class="block text-sm font-medium text-gray-700"
+                >Notes</label
+              >
+              <p
+                class="mt-1 text-sm text-gray-900"
+                x-text="personnelDetails.notes || 'N/A'"
+              ></p>
+            </div>
+          </div>
+        </template>
+
+        <div class="mt-6 flex justify-end">
+          <button
+            @click="showPersonnelModal = false"
+            class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 {% endblock %} {% block scripts %}
 <script>
@@ -416,6 +533,8 @@ endblock %} {% block head %}
       fairnessStats: [],
       stats: {},
       viewMode: "cards",
+      showPersonnelModal: false,
+      personnelDetails: null,
 
       init() {
         this.stats = window.serverData.stats || {};
@@ -436,17 +555,69 @@ endblock %} {% block head %}
       },
 
       generateReport() {
-        // Generate and download fairness report
-        console.log("Generate fairness report");
+        // Create CSV report
+        const csvContent = this.generateCSVReport();
+        const blob = new Blob([csvContent], {
+          type: "text/csv;charset=utf-8;",
+        });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute(
+          "download",
+          `fairness-report-${new Date().toISOString().split("T")[0]}.csv`
+        );
+        link.style.visibility = "hidden";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      },
+
+      generateCSVReport() {
+        const headers = [
+          "Personnel Name",
+          "Fairness Score",
+          "Total Assignments",
+          "Total Difficulty Points",
+          "Average Difficulty",
+          "Last Assignment Date",
+          "Consecutive Standby",
+          "Status",
+        ];
+
+        let csvContent = headers.join(",") + "\n";
+
+        this.sortedFairnessStats.forEach((stat) => {
+          const row = [
+            stat.person_name,
+            stat.fairness_score.toFixed(2),
+            stat.total_assignments,
+            stat.total_difficulty_points,
+            (
+              stat.total_difficulty_points / Math.max(stat.total_assignments, 1)
+            ).toFixed(1),
+            stat.last_assignment_date
+              ? this.formatDate(stat.last_assignment_date)
+              : "None",
+            stat.consecutive_standby || 0,
+            this.getFairnessLabel(stat.fairness_score),
+          ];
+          csvContent += row.map((field) => `"${field}"`).join(",") + "\n";
+        });
+
+        return csvContent;
       },
 
       openPersonnelModal(personId) {
-        // Use the same personnel modal from dashboard
-        if (typeof window.openPersonnelModal === "function") {
-          window.openPersonnelModal(personId);
-        } else {
-          console.log("View personnel details:", personId);
-        }
+        fetch(`/api/personnel/${personId}/details`)
+          .then((response) => response.json())
+          .then((data) => {
+            this.personnelDetails = data;
+            this.showPersonnelModal = true;
+          })
+          .catch((error) =>
+            console.error("Error fetching personnel details:", error)
+          );
       },
 
       formatNumber(num, decimals = 0) {

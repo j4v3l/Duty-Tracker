@@ -1,6 +1,11 @@
 /* TailwindCSS custom styles for Duty Tracker */
 @import url("https://unpkg.com/tailwindcss@2.2.19/dist/tailwind.min.css");
 
+/* Alpine.js x-cloak utility - hides elements until Alpine is loaded */
+[x-cloak] {
+  display: none !important;
+}
+
 /* Custom military theme colors */
 :root {
   --military-green: #2d5016;

@@ -254,6 +254,23 @@
       stats: {},
       statusFilter: "all",
       searchQuery: "",
+      showAddPersonnelModal: false,
+      showPersonnelDetailsModal: false,
+      showEditPersonnelModal: false,
+      selectedPersonnel: null,
+      personnelDetails: null,
+      editPersonnelData: {
+        id: "",
+        rank: "",
+        name: "",
+        is_active: true,
+      },
+      newPersonnel: {
+        rank: "",
+        name: "",
+        is_active: true,
+      },
+      ranks: ["PV2", "PFC", "SPC", "CPL", "SGT", "SSG", "SFC", "MSG", "SGM"],
 
       init() {
         this.stats = window.serverData.stats || {};
@@ -291,19 +308,93 @@
         window.location.reload();
       },
 
-      viewPersonnelDetails(personId) {
-        // Implement personnel details view
-        console.log("View details for person:", personId);
+      async viewPersonnelDetails(personId) {
+        this.showPersonnelDetailsModal = true;
+        this.personnelDetails = null;
+
+        try {
+          const response = await fetch(`/api/personnel/${personId}/details`);
+          if (response.ok) {
+            this.personnelDetails = await response.json();
+          } else {
+            const error = await response.json();
+            alert("Failed to load personnel details: " + error.detail);
+            this.showPersonnelDetailsModal = false;
+          }
+        } catch (error) {
+          alert("Failed to load personnel details: " + error.message);
+          this.showPersonnelDetailsModal = false;
+        }
       },
 
       editPersonnel(person) {
-        // Implement personnel editing
-        console.log("Edit person:", person);
+        this.editPersonnelData = {
+          id: person.id,
+          rank: person.rank,
+          name: person.name,
+          is_active: person.is_active,
+        };
+        this.showEditPersonnelModal = true;
+      },
+
+      async savePersonnelChanges() {
+        try {
+          const response = await fetch(
+            `/api/personnel/${this.editPersonnelData.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                rank: this.editPersonnelData.rank,
+                name: this.editPersonnelData.name,
+                is_active: this.editPersonnelData.is_active,
+              }),
+            }
+          );
+
+          if (response.ok) {
+            this.refreshData();
+            this.showEditPersonnelModal = false;
+          } else {
+            const error = await response.json();
+            alert("Failed to update personnel: " + error.detail);
+          }
+        } catch (error) {
+          alert("Failed to update personnel: " + error.message);
+        }
       },
 
       openAddPersonnelModal() {
-        // Implement add personnel modal
-        console.log("Open add personnel modal");
+        this.newPersonnel = {
+          rank: "",
+          name: "",
+          is_active: true,
+        };
+        this.showAddPersonnelModal = true;
+      },
+
+      async addPersonnel() {
+        try {
+          const response = await fetch("/api/personnel", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(this.newPersonnel),
+          });
+
+          if (response.ok) {
+            this.refreshData();
+            this.showAddPersonnelModal = false;
+          } else {
+            const error = await response.json();
+            alert("Failed to add personnel: " + error.detail);
+          }
+        } catch (error) {
+          alert("Failed to add personnel: " + error.message);
+        }
       },
 
       getPersonnelStats(personId) {
@@ -350,4 +441,244 @@
     };
   }
 </script>
+
+<!-- Add Personnel Modal -->
+<div
+  x-show="showAddPersonnelModal"
+  class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+  style="display: none"
+>
+  <div
+    class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
+  >
+    <div class="mt-3 text-center">
+      <h3 class="text-lg font-medium text-gray-900">Add New Personnel</h3>
+      <form @submit.prevent="addPersonnel()" class="mt-4 space-y-4">
+        <!-- Rank Selection -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Rank</label
+          >
+          <select
+            x-model="newPersonnel.rank"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Select Rank</option>
+            <template x-for="rank in ranks" :key="rank">
+              <option :value="rank" x-text="rank"></option>
+            </template>
+          </select>
+        </div>
+
+        <!-- Name Input -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Name</label
+          >
+          <input
+            type="text"
+            x-model="newPersonnel.name"
+            required
+            placeholder="Last name"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Status -->
+        <div>
+          <label class="flex items-center">
+            <input
+              type="checkbox"
+              x-model="newPersonnel.is_active"
+              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span class="ml-2 text-sm text-gray-700">Active Status</span>
+          </label>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex gap-3 pt-4">
+          <button
+            type="submit"
+            class="flex-1 military-primary py-2 px-4 rounded-md text-white font-medium hover:opacity-90"
+          >
+            Add Personnel
+          </button>
+          <button
+            type="button"
+            @click="showAddPersonnelModal = false"
+            class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 px-4 rounded-md text-gray-700 font-medium"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Personnel Details Modal -->
+<div
+  x-show="showPersonnelDetailsModal"
+  class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+  style="display: none"
+>
+  <div
+    class="relative top-10 mx-auto p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white"
+  >
+    <div class="mt-3">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-xl font-medium text-gray-900">
+          <i class="fas fa-user mr-2"></i>
+          Personnel Details
+        </h3>
+        <button
+          @click="showPersonnelDetailsModal = false"
+          class="text-gray-400 hover:text-gray-600 text-xl"
+        >
+          ×
+        </button>
+      </div>
+
+      <div x-show="personnelDetails" class="space-y-6">
+        <!-- Basic Info -->
+        <div class="bg-gray-50 p-4 rounded-lg">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <h4 class="font-medium text-gray-700">Rank</h4>
+              <p x-text="personnelDetails?.rank"></p>
+            </div>
+            <div>
+              <h4 class="font-medium text-gray-700">Name</h4>
+              <p x-text="personnelDetails?.name"></p>
+            </div>
+            <div>
+              <h4 class="font-medium text-gray-700">Status</h4>
+              <span
+                :class="personnelDetails?.is_active ? 'status-assigned' : 'status-no-show'"
+                x-text="personnelDetails?.is_active ? 'Active' : 'Inactive'"
+              ></span>
+            </div>
+            <div>
+              <h4 class="font-medium text-gray-700">Total Assignments</h4>
+              <p x-text="personnelDetails?.total_assignments || 0"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="text-center p-4 bg-blue-50 rounded-lg">
+            <h4 class="font-medium text-gray-700">Fairness Score</h4>
+            <p
+              class="text-2xl font-bold text-blue-600"
+              x-text="personnelDetails?.fairness_score?.toFixed(2) || 'N/A'"
+            ></p>
+          </div>
+          <div class="text-center p-4 bg-green-50 rounded-lg">
+            <h4 class="font-medium text-gray-700">Total Difficulty</h4>
+            <p
+              class="text-2xl font-bold text-green-600"
+              x-text="personnelDetails?.total_difficulty_points || 0"
+            ></p>
+          </div>
+          <div class="text-center p-4 bg-purple-50 rounded-lg">
+            <h4 class="font-medium text-gray-700">Avg Difficulty</h4>
+            <p
+              class="text-2xl font-bold text-purple-600"
+              x-text="((personnelDetails?.total_difficulty_points || 0) / Math.max(personnelDetails?.total_assignments || 1, 1)).toFixed(1)"
+            ></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Loading State -->
+      <div
+        x-show="!personnelDetails && showPersonnelDetailsModal"
+        class="p-8 text-center"
+      >
+        <i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i>
+        <p class="mt-2 text-gray-500">Loading personnel details...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Personnel Modal -->
+<div
+  x-show="showEditPersonnelModal"
+  class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+  style="display: none"
+>
+  <div
+    class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white"
+  >
+    <div class="mt-3 text-center">
+      <h3 class="text-lg font-medium text-gray-900">Edit Personnel</h3>
+      <form @submit.prevent="savePersonnelChanges()" class="mt-4 space-y-4">
+        <!-- Rank Selection -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Rank</label
+          >
+          <select
+            x-model="editPersonnelData.rank"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Select Rank</option>
+            <template x-for="rank in ranks" :key="rank">
+              <option :value="rank" x-text="rank"></option>
+            </template>
+          </select>
+        </div>
+
+        <!-- Name Input -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Name</label
+          >
+          <input
+            type="text"
+            x-model="editPersonnelData.name"
+            required
+            placeholder="Last name"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Status -->
+        <div>
+          <label class="flex items-center">
+            <input
+              type="checkbox"
+              x-model="editPersonnelData.is_active"
+              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span class="ml-2 text-sm text-gray-700">Active Status</span>
+          </label>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex gap-3 pt-4">
+          <button
+            type="submit"
+            class="flex-1 military-primary py-2 px-4 rounded-md text-white font-medium hover:opacity-90"
+          >
+            Save Changes
+          </button>
+          <button
+            type="button"
+            @click="showEditPersonnelModal = false"
+            class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 px-4 rounded-md text-gray-700 font-medium"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

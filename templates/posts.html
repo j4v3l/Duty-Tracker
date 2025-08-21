@@ -393,6 +393,26 @@ block head %}
       stats: {},
       postTypeFilter: "all",
       statusFilter: "all",
+      showAddPostModal: false,
+      showAddPostTypeModal: false,
+      showEditPostModal: false,
+      showEditPostTypeModal: false,
+      editingPost: null,
+      editingPostType: null,
+      newPost: {
+        name: "",
+        post_type_id: "",
+        location: "",
+        equipment_needed: "",
+        special_instructions: "",
+        is_active: true,
+      },
+      newPostType: {
+        name: "",
+        description: "",
+        difficulty_level: 1,
+        personnel_required: 1,
+      },
 
       init() {
         this.stats = window.serverData.stats || {};
@@ -428,11 +448,118 @@ block head %}
       },
 
       openAddPostModal() {
-        console.log("Open add post modal");
+        this.newPost = {
+          name: "",
+          post_type_id: "",
+          location: "",
+          equipment_needed: "",
+          special_instructions: "",
+          is_active: true,
+        };
+        this.showAddPostModal = true;
       },
 
       openAddPostTypeModal() {
-        console.log("Open add post type modal");
+        this.newPostType = {
+          name: "",
+          description: "",
+          difficulty_level: 1,
+          personnel_required: 1,
+        };
+        this.showAddPostTypeModal = true;
+      },
+
+      async addPost() {
+        try {
+          const response = await fetch("/api/posts", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(this.newPost),
+          });
+
+          if (response.ok) {
+            this.refreshData();
+            this.showAddPostModal = false;
+          } else {
+            const error = await response.json();
+            alert("Failed to add post: " + error.detail);
+          }
+        } catch (error) {
+          alert("Failed to add post: " + error.message);
+        }
+      },
+
+      async addPostType() {
+        try {
+          const response = await fetch("/api/post-types", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(this.newPostType),
+          });
+
+          if (response.ok) {
+            this.refreshData();
+            this.showAddPostTypeModal = false;
+          } else {
+            const error = await response.json();
+            alert("Failed to add post type: " + error.detail);
+          }
+        } catch (error) {
+          alert("Failed to add post type: " + error.message);
+        }
+      },
+
+      async updatePost() {
+        try {
+          const response = await fetch(`/api/posts/${this.editingPost.id}`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(this.editingPost),
+          });
+
+          if (response.ok) {
+            this.refreshData();
+            this.showEditPostModal = false;
+            this.editingPost = null;
+          } else {
+            const error = await response.json();
+            alert("Failed to update post: " + error.detail);
+          }
+        } catch (error) {
+          alert("Failed to update post: " + error.message);
+        }
+      },
+
+      async updatePostType() {
+        try {
+          const response = await fetch(
+            `/api/post-types/${this.editingPostType.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(this.editingPostType),
+            }
+          );
+
+          if (response.ok) {
+            this.refreshData();
+            this.showEditPostTypeModal = false;
+            this.editingPostType = null;
+          } else {
+            const error = await response.json();
+            alert("Failed to update post type: " + error.detail);
+          }
+        } catch (error) {
+          alert("Failed to update post type: " + error.message);
+        }
       },
 
       viewPostDetails(post) {
@@ -440,11 +567,13 @@ block head %}
       },
 
       editPost(post) {
-        console.log("Edit post:", post);
+        this.editingPost = { ...post };
+        this.showEditPostModal = true;
       },
 
       editPostType(postType) {
-        console.log("Edit post type:", postType);
+        this.editingPostType = { ...postType };
+        this.showEditPostTypeModal = true;
       },
 
       getPostTypeIcon(typeName) {
@@ -512,4 +641,464 @@ block head %}
     };
   }
 </script>
+
+<!-- Add Post Modal -->
+<div
+  x-show="showAddPostModal"
+  class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+  style="display: none"
+>
+  <div
+    class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white"
+  >
+    <div class="mt-3 text-center">
+      <h3 class="text-lg font-medium text-gray-900">Add New Post</h3>
+      <form @submit.prevent="addPost()" class="mt-4 space-y-4">
+        <!-- Post Name -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Post Name</label
+          >
+          <input
+            type="text"
+            x-model="newPost.name"
+            required
+            placeholder="e.g., Main Gate East"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Post Type -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Post Type</label
+          >
+          <select
+            x-model="newPost.post_type_id"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="">Select Post Type</option>
+            <template x-for="postType in postTypes" :key="postType.id">
+              <option :value="postType.id" x-text="postType.name"></option>
+            </template>
+          </select>
+        </div>
+
+        <!-- Location -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Location</label
+          >
+          <input
+            type="text"
+            x-model="newPost.location"
+            placeholder="Building/Area location"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Equipment Needed -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Equipment Needed</label
+          >
+          <textarea
+            x-model="newPost.equipment_needed"
+            rows="3"
+            placeholder="List required equipment"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          ></textarea>
+        </div>
+
+        <!-- Special Instructions -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Special Instructions</label
+          >
+          <textarea
+            x-model="newPost.special_instructions"
+            rows="3"
+            placeholder="Any special instructions"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          ></textarea>
+        </div>
+
+        <!-- Active Status -->
+        <div>
+          <label class="flex items-center">
+            <input
+              type="checkbox"
+              x-model="newPost.is_active"
+              class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <span class="ml-2 text-sm text-gray-700">Active Post</span>
+          </label>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex gap-3 pt-4">
+          <button
+            type="submit"
+            class="flex-1 military-primary py-2 px-4 rounded-md text-white font-medium hover:opacity-90"
+          >
+            Add Post
+          </button>
+          <button
+            type="button"
+            @click="showAddPostModal = false"
+            class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 px-4 rounded-md text-gray-700 font-medium"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Add Post Type Modal -->
+<div
+  x-show="showAddPostTypeModal"
+  class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+  style="display: none"
+>
+  <div
+    class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white"
+  >
+    <div class="mt-3 text-center">
+      <h3 class="text-lg font-medium text-gray-900">Add New Post Type</h3>
+      <form @submit.prevent="addPostType()" class="mt-4 space-y-4">
+        <!-- Post Type Name -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Name</label
+          >
+          <input
+            type="text"
+            x-model="newPostType.name"
+            required
+            placeholder="e.g., SOG, ECP, CQ"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Description -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Description</label
+          >
+          <textarea
+            x-model="newPostType.description"
+            rows="3"
+            placeholder="Describe this post type"
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          ></textarea>
+        </div>
+
+        <!-- Difficulty Level -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Difficulty Level (1-10)</label
+          >
+          <input
+            type="number"
+            min="1"
+            max="10"
+            x-model="newPostType.difficulty_level"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Personnel Required -->
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1"
+            >Personnel Required</label
+          >
+          <input
+            type="number"
+            min="1"
+            x-model="newPostType.personnel_required"
+            required
+            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex gap-3 pt-4">
+          <button
+            type="submit"
+            class="flex-1 bg-purple-600 text-white py-2 px-4 rounded-md font-medium hover:bg-purple-700"
+          >
+            Add Post Type
+          </button>
+          <button
+            type="button"
+            @click="showAddPostTypeModal = false"
+            class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 px-4 rounded-md text-gray-700 font-medium"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Post Modal -->
+<div
+  x-show="showEditPostModal"
+  x-cloak
+  class="fixed inset-0 z-50 overflow-y-auto"
+  x-transition:enter="transition-opacity duration-300"
+  x-transition:enter-start="opacity-0"
+  x-transition:enter-end="opacity-100"
+  x-transition:leave="transition-opacity duration-200"
+  x-transition:leave-start="opacity-100"
+  x-transition:leave-end="opacity-0"
+  @click="showEditPostModal = false"
+>
+  <div class="flex items-center justify-center min-h-screen px-4 py-6">
+    <div class="bg-white rounded-lg shadow-lg max-w-lg w-full p-6" @click.stop>
+      <form @submit.prevent="updatePost()">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Edit Post</h3>
+          <button
+            type="button"
+            @click="showEditPostModal = false"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="space-y-4" x-show="editingPost">
+          <div>
+            <label
+              for="edit-post-name"
+              class="block text-sm font-medium text-gray-700"
+              >Post Name</label
+            >
+            <input
+              type="text"
+              id="edit-post-name"
+              x-model="editingPost.name"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label
+              for="edit-post-type"
+              class="block text-sm font-medium text-gray-700"
+              >Post Type</label
+            >
+            <select
+              id="edit-post-type"
+              x-model="editingPost.post_type_id"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              required
+            >
+              <option value="">Select a post type...</option>
+              <template x-for="postType in postTypes" :key="postType.id">
+                <option :value="postType.id" x-text="postType.name"></option>
+              </template>
+            </select>
+          </div>
+
+          <div>
+            <label
+              for="edit-post-location"
+              class="block text-sm font-medium text-gray-700"
+              >Location</label
+            >
+            <input
+              type="text"
+              id="edit-post-location"
+              x-model="editingPost.location"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label
+              for="edit-post-equipment"
+              class="block text-sm font-medium text-gray-700"
+              >Equipment Needed</label
+            >
+            <textarea
+              id="edit-post-equipment"
+              x-model="editingPost.equipment_needed"
+              rows="2"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            ></textarea>
+          </div>
+
+          <div>
+            <label
+              for="edit-post-instructions"
+              class="block text-sm font-medium text-gray-700"
+              >Special Instructions</label
+            >
+            <textarea
+              id="edit-post-instructions"
+              x-model="editingPost.special_instructions"
+              rows="3"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            ></textarea>
+          </div>
+
+          <div class="flex items-center">
+            <input
+              type="checkbox"
+              id="edit-post-active"
+              x-model="editingPost.is_active"
+              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label
+              for="edit-post-active"
+              class="ml-2 block text-sm text-gray-900"
+              >Active</label
+            >
+          </div>
+        </div>
+
+        <div class="mt-6 flex space-x-3">
+          <button
+            type="submit"
+            class="flex-1 bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded-md text-white font-medium"
+          >
+            Update Post
+          </button>
+          <button
+            type="button"
+            @click="showEditPostModal = false"
+            class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 px-4 rounded-md text-gray-700 font-medium"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Post Type Modal -->
+<div
+  x-show="showEditPostTypeModal"
+  x-cloak
+  class="fixed inset-0 z-50 overflow-y-auto"
+  x-transition:enter="transition-opacity duration-300"
+  x-transition:enter-start="opacity-0"
+  x-transition:enter-end="opacity-100"
+  x-transition:leave="transition-opacity duration-200"
+  x-transition:leave-start="opacity-100"
+  x-transition:leave-end="opacity-0"
+  @click="showEditPostTypeModal = false"
+>
+  <div class="flex items-center justify-center min-h-screen px-4 py-6">
+    <div class="bg-white rounded-lg shadow-lg max-w-md w-full p-6" @click.stop>
+      <form @submit.prevent="updatePostType()">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-lg font-semibold text-gray-900">Edit Post Type</h3>
+          <button
+            type="button"
+            @click="showEditPostTypeModal = false"
+            class="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg
+              class="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="space-y-4" x-show="editingPostType">
+          <div>
+            <label
+              for="edit-post-type-name"
+              class="block text-sm font-medium text-gray-700"
+              >Type Name</label
+            >
+            <input
+              type="text"
+              id="edit-post-type-name"
+              x-model="editingPostType.name"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label
+              for="edit-post-type-description"
+              class="block text-sm font-medium text-gray-700"
+              >Description</label
+            >
+            <textarea
+              id="edit-post-type-description"
+              x-model="editingPostType.description"
+              rows="3"
+              class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            ></textarea>
+          </div>
+
+          <div class="flex items-center">
+            <input
+              type="checkbox"
+              id="edit-post-type-active"
+              x-model="editingPostType.is_active"
+              class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label
+              for="edit-post-type-active"
+              class="ml-2 block text-sm text-gray-900"
+              >Active</label
+            >
+          </div>
+        </div>
+
+        <div class="mt-6 flex space-x-3">
+          <button
+            type="submit"
+            class="flex-1 bg-blue-600 hover:bg-blue-700 py-2 px-4 rounded-md text-white font-medium"
+          >
+            Update Post Type
+          </button>
+          <button
+            type="button"
+            @click="showEditPostTypeModal = false"
+            class="flex-1 bg-gray-300 hover:bg-gray-400 py-2 px-4 rounded-md text-gray-700 font-medium"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 {% endblock %}

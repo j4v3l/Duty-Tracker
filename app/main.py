@@ -317,6 +317,15 @@ def create_personnel(personnel: schemas.PersonnelCreate, db: Session = Depends(g
     return crud.create_personnel(db, personnel)
 
 
+@app.put("/api/personnel/{person_id}", response_model=schemas.PersonnelResponse)
+def update_personnel(person_id: int, personnel: schemas.PersonnelCreate, db: Session = Depends(get_db)):
+    """Update personnel."""
+    updated_personnel = crud.update_personnel(db, person_id, personnel)
+    if not updated_personnel:
+        raise HTTPException(status_code=404, detail="Personnel not found")
+    return updated_personnel
+
+
 @app.get("/api/personnel/{person_id}/details")
 def get_personnel_details(person_id: int, db: Session = Depends(get_db)):
     """Get comprehensive personnel details including assignment history and fairness stats."""
@@ -332,10 +341,40 @@ def get_posts(db: Session = Depends(get_db)):
     return crud.get_posts(db)
 
 
+@app.post("/api/posts", response_model=schemas.PostResponse)
+def create_post(post: schemas.PostCreate, db: Session = Depends(get_db)):
+    """Create new post."""
+    return crud.create_post(db=db, post=post)
+
+
 @app.get("/api/post-types", response_model=List[schemas.PostTypeResponse])
 def get_post_types(db: Session = Depends(get_db)):
     """Get all post types."""
     return crud.get_post_types(db)
+
+
+@app.post("/api/post-types", response_model=schemas.PostTypeResponse)
+def create_post_type(post_type: schemas.PostTypeCreate, db: Session = Depends(get_db)):
+    """Create new post type."""
+    return crud.create_post_type(db=db, post_type=post_type)
+
+
+@app.put("/api/posts/{post_id}", response_model=schemas.PostResponse)
+def update_post(post_id: int, post: schemas.PostCreate, db: Session = Depends(get_db)):
+    """Update an existing post."""
+    updated_post = crud.update_post(db=db, post_id=post_id, post_update=post)
+    if not updated_post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return updated_post
+
+
+@app.put("/api/post-types/{post_type_id}", response_model=schemas.PostTypeResponse)
+def update_post_type(post_type_id: int, post_type: schemas.PostTypeCreate, db: Session = Depends(get_db)):
+    """Update an existing post type."""
+    updated_post_type = crud.update_post_type(db=db, post_type_id=post_type_id, post_type_update=post_type)
+    if not updated_post_type:
+        raise HTTPException(status_code=404, detail="Post type not found")
+    return updated_post_type
 
 
 @app.get("/api/assignments", response_model=List[schemas.AssignmentResponse])
@@ -348,6 +387,15 @@ def get_assignments(skip: int = 0, limit: int = 100, db: Session = Depends(get_d
 def create_assignment(assignment: schemas.AssignmentCreate, db: Session = Depends(get_db)):
     """Create new assignment."""
     return crud.create_assignment(db, assignment)
+
+
+@app.put("/api/assignments/{assignment_id}", response_model=schemas.AssignmentResponse)
+def update_assignment(assignment_id: int, assignment: schemas.AssignmentCreate, db: Session = Depends(get_db)):
+    """Update an existing assignment."""
+    updated_assignment = crud.update_assignment(db=db, assignment_id=assignment_id, assignment_update=assignment)
+    if not updated_assignment:
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    return updated_assignment
 
 
 @app.get("/api/fairness")
